@@ -1,9 +1,0 @@
-<link rel="stylesheet" href="/app.css"><pre id="o"></pre><script>
-const root=document.documentElement, out=[]
-for (const t of [null,'light','dark']) {
-  if (t) root.setAttribute('data-theme',t); else root.removeAttribute('data-theme')
-  const cs=getComputedStyle(root)
-  out.push(`data-theme=${String(t).padEnd(6)} --bg=${cs.getPropertyValue('--bg').trim().padEnd(8)} --text=${cs.getPropertyValue('--text').trim().padEnd(8)} --thumb-bg=${cs.getPropertyValue('--thumb-bg').trim()}`)
-}
-document.getElementById('o').textContent=out.join('\n')
-</script>
