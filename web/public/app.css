@@ -164,6 +164,22 @@ a:hover { text-decoration: underline; }
 }
 .side-filter:focus { border-color: var(--accent); outline: none; }
 
+.side-select {
+  width: 100%; height: 32px; padding: 0 28px 0 9px;
+  background: var(--bg-elev); color: var(--text);
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  font: inherit; font-size: 13px; cursor: pointer;
+  appearance: none;
+  /* caret drawn inline so no external asset is needed */
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 15px) 14px, calc(100% - 10px) 14px;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+.side-select:focus { border-color: var(--accent); outline: none; }
+.side-select option { background: var(--bg-elev); color: var(--text); }
+
 .chips { display: flex; flex-wrap: wrap; gap: 6px; max-height: 142px; overflow-y: auto; }
 .chip {
   padding: 4px 10px;

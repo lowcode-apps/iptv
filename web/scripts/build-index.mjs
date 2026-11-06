@@ -148,17 +148,43 @@ function pickLogo(logoMap, channelId, feed) {
 // --- main ------------------------------------------------------------------
 
 async function main() {
-  const [channelsApi, logosApi, countriesApi, categoriesApi] = await Promise.all([
-    api('channels'),
-    api('logos'),
-    api('countries'),
-    api('categories')
-  ])
+  const [channelsApi, logosApi, countriesApi, categoriesApi, feedsApi, languagesApi] =
+    await Promise.all([
+      api('channels'),
+      api('logos'),
+      api('countries'),
+      api('categories'),
+      api('feeds'),
+      api('languages')
+    ])
 
   const channelById = new Map(channelsApi.map(c => [c.id, c]))
   const logoMap = buildLogoMap(logosApi)
   const countryByCode = new Map(countriesApi.map(c => [c.code, c]))
   const categoryById = new Map(categoriesApi.map(c => [c.id, c]))
+  const languageByCode = new Map(languagesApi.map(l => [l.code, l]))
+
+  // Language is a property of the feed, not the channel, so key on both. Also
+  // remember each channel's main feed to fall back on when a playlist names a
+  // feed the database doesn't carry.
+  const feedLanguages = new Map()
+  const mainFeedLanguages = new Map()
+  for (const feed of feedsApi) {
+    if (!feed.languages?.length) continue
+    feedLanguages.set(`${feed.channel}@${feed.id}`, feed.languages)
+    if (feed.is_main) mainFeedLanguages.set(feed.channel, feed.languages)
+  }
+
+  function resolveLanguages(channelId, feed, countryCode) {
+    if (channelId) {
+      const exact = feed && feedLanguages.get(`${channelId}@${feed}`)
+      if (exact) return exact
+      const main = mainFeedLanguages.get(channelId)
+      if (main) return main
+    }
+    // Last resort for entries with no usable tvg-id: the country's languages.
+    return countryByCode.get(countryCode)?.languages || []
+  }
 
   const files = (await readdir(STREAMS_DIR)).filter(f => f.endsWith('.m3u')).sort()
   log(`parsing ${files.length} playlists from ${STREAMS_DIR}`)
@@ -193,6 +219,7 @@ async function main() {
           logo: channelId ? pickLogo(logoMap, channelId, feed) : null,
           country: countryCode,
           categories: meta?.categories?.length ? meta.categories : [],
+          languages: resolveLanguages(channelId, feed, countryCode),
           nsfw: meta?.is_nsfw === true,
           website: meta?.website || null,
           feed: feed || null,
@@ -230,6 +257,7 @@ async function main() {
 
   const countries = []
   const categoryCounts = new Map()
+  const languageCounts = new Map()
   const search = []
 
   for (const [code, bucket] of [...byCountry.entries()].sort()) {
@@ -249,6 +277,9 @@ async function main() {
       for (const category of channel.categories) {
         categoryCounts.set(category, (categoryCounts.get(category) || 0) + 1)
       }
+      for (const language of channel.languages) {
+        languageCounts.set(language, (languageCounts.get(language) || 0) + 1)
+      }
       // [id, name, countryCode, nsfw] — kept positional to keep this file small
       search.push([channel.id, channel.name, code, channel.nsfw ? 1 : 0])
     }
@@ -258,6 +289,10 @@ async function main() {
     .map(([id, count]) => ({ id, name: categoryById.get(id)?.name || id, count }))
     .sort((a, b) => b.count - a.count)
 
+  const languages = [...languageCounts.entries()]
+    .map(([code, count]) => ({ code, name: languageByCode.get(code)?.name || code, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+
   const totalChannels = countries.reduce((n, c) => n + c.count, 0)
   await writeFile(
     join(OUT_DIR, 'meta.json'),
@@ -266,7 +301,8 @@ async function main() {
       totalChannels,
       totalStreams: stats.streams,
       countries: countries.sort((a, b) => a.name.localeCompare(b.name)),
-      categories
+      categories,
+      languages
     })
   )
   await writeFile(join(OUT_DIR, 'search.json'), JSON.stringify(search))
@@ -274,7 +310,7 @@ async function main() {
   log(`entries=${stats.entries} streams=${stats.streams} channels=${totalChannels}`)
   log(`hls=${stats.hls} dash=${stats.dash} other=${stats.other}`)
   log(`http-only=${stats.insecure} (proxy required) no-api-metadata=${stats.noMeta}`)
-  log(`countries=${countries.length} categories=${categories.length}`)
+  log(`countries=${countries.length} categories=${categories.length} languages=${languages.length}`)
   log(`-> ${OUT_DIR}`)
 }
 

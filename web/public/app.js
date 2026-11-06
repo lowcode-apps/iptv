@@ -14,7 +14,8 @@ const defaults = {
   showNsfw: false,
   autoNext: true,
   favourites: [],
-  lastCountry: null
+  lastCountry: null,
+  language: 'tam'
 }
 
 function loadStore() {
@@ -40,7 +41,7 @@ const favourites = new Set(settings.favourites)
 
 const state = {
   meta: null,
-  view: { kind: 'country', country: null, category: null, query: '' },
+  view: { kind: 'country', country: null, category: null, language: null, query: '' },
   channels: [],
   searchIndex: null,
   current: null,
@@ -56,6 +57,7 @@ const dom = {
   search: el('search'), favouritesBtn: el('favouritesBtn'), favCount: el('favCount'),
   categoryChips: el('categoryChips'), countryList: el('countryList'),
   countryFilter: el('countryFilter'), countryTotal: el('countryTotal'),
+  languageSelect: el('languageSelect'), languageTotal: el('languageTotal'),
   viewTitle: el('viewTitle'), viewSub: el('viewSub'),
   grid: el('channels'), emptyState: el('emptyState'), emptyBody: el('emptyBody'),
   footStats: el('footStats'), footGenerated: el('footGenerated'),
@@ -124,7 +126,22 @@ async function getJSON(path) {
 function matchesFilters(channel) {
   if (channel.nsfw && !settings.showNsfw) return false
   if (state.view.category && !channel.categories.includes(state.view.category)) return false
+  if (state.view.language && !channel.languages.includes(state.view.language)) return false
   return true
+}
+
+// One human-readable summary of whatever filters are currently applied.
+function activeFilterLabel() {
+  const parts = []
+  if (state.view.category) {
+    const category = state.meta.categories.find(c => c.id === state.view.category)
+    parts.push(category?.name || state.view.category)
+  }
+  if (state.view.language) {
+    const language = state.meta.languages.find(l => l.code === state.view.language)
+    parts.push(language?.name || state.view.language)
+  }
+  return parts.join(' + ')
 }
 
 const nonWord = /[^\p{L}\p{N}]+/gu
@@ -310,6 +327,15 @@ function renderSidebar() {
     dom.categoryChips.append(chip)
   }
 
+  const languages = state.meta.languages || []
+  dom.languageTotal.textContent = `(${languages.length})`
+  const options = [new Option('All languages', '')]
+  for (const language of languages) {
+    options.push(new Option(`${language.name} (${language.count})`, language.code))
+  }
+  dom.languageSelect.replaceChildren(...options)
+  dom.languageSelect.value = state.view.language || ''
+
   renderCountryList('')
 }
 
@@ -386,10 +412,10 @@ async function showCountry(code) {
   renderChannels(visible, {
     title: info ? `${info.flag} ${info.name}` : code,
     subtitle: `${visible.length.toLocaleString()} channels · ${streams.toLocaleString()} sources${
-      state.view.category ? ` · filtered by ${state.view.category}` : ''
+      activeFilterLabel() ? ` · ${activeFilterLabel()}` : ''
     }`,
-    emptyMessage: state.view.category
-      ? 'No channels in this country match the selected category.'
+    emptyMessage: activeFilterLabel()
+      ? `No channels in this country match ${activeFilterLabel()}.`
       : 'This country has no channels in the playlists.'
   })
 }
@@ -795,6 +821,13 @@ function bindEvents() {
     else location.hash = '#/favourites'
   })
 
+  dom.languageSelect.addEventListener('change', () => {
+    state.view.language = dom.languageSelect.value || null
+    settings.language = state.view.language
+    saveStore()
+    refreshView()
+  })
+
   dom.countryFilter.addEventListener('input', () => {
     renderCountryList(dom.countryFilter.value)
     syncCountrySelection()
@@ -899,6 +932,11 @@ async function init() {
     `${state.meta.totalStreams.toLocaleString()} sources · ` +
     `${state.meta.countries.length} countries`
   dom.footGenerated.textContent = `index built ${new Date(state.meta.generatedAt).toLocaleString()}`
+
+  state.view.language =
+    (state.meta.languages || []).some(l => l.code === settings.language)
+      ? settings.language
+      : null
 
   renderSidebar()
   bindEvents()

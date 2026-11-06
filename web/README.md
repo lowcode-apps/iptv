@@ -138,6 +138,20 @@ automatically.
 | `m` | Mute |
 | `n` | Next source for this channel |
 
+## Filters
+
+The sidebar carries three independent filters that stack with each other and
+with search:
+
+- **Categories** — chips (News, Sports, Movies…), click to toggle.
+- **Language** — a dropdown of all 218 languages, ordered by channel count.
+  Defaults to **Tamil**; whatever you pick is remembered for next time.
+- **Countries** — 181 entries with a type-ahead filter box.
+
+The count beside each language is its worldwide total, so picking Tamil (136)
+while browsing India shows 117 — the rest are in Sri Lanka, Malaysia and
+Singapore. Switch country, or search, to reach them.
+
 ## Settings
 
 Stored per-browser in `localStorage`:
@@ -152,9 +166,11 @@ Stored per-browser in `localStorage`:
 ## Data
 
 `build-index.mjs` parses `../streams/*.m3u` from this fork and joins it against
-the [iptv-org API](https://github.com/iptv-org/api) for names, logos, countries
-and categories. Current build: **13,434 channels / 18,456 sources / 181
-countries**. Output is sharded so the first paint stays small — 3 KB gzipped for
+the [iptv-org API](https://github.com/iptv-org/api): `channels` and `logos` for
+names and artwork, `countries` and `categories` for grouping, and `feeds` for
+language (language is a property of the feed in that database, not the channel,
+so it is keyed on `channel@feed`). Current build: **13,434 channels / 18,456
+sources / 181 countries / 218 languages**, with a language on 100% of channels. Output is sharded so the first paint stays small — 3 KB gzipped for
 the country and category index, 30–160 KB per country, 147 KB for the global
 search index (loaded on first search).
 
