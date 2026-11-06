@@ -15,7 +15,8 @@ const defaults = {
   autoNext: true,
   favourites: [],
   lastCountry: null,
-  language: 'tam'
+  language: 'tam',
+  theme: 'system'
 }
 
 function loadStore() {
@@ -55,7 +56,8 @@ const el = id => document.getElementById(id)
 const dom = {
   navToggle: el('navToggle'), sidebar: el('sidebar'),
   search: el('search'), favouritesBtn: el('favouritesBtn'), favCount: el('favCount'),
-  categoryChips: el('categoryChips'), countryList: el('countryList'),
+  categoryChips: el('categoryChips'), categoryMore: el('categoryMore'),
+  themeBtn: el('themeBtn'), countryList: el('countryList'),
   countryFilter: el('countryFilter'), countryTotal: el('countryTotal'),
   languageSelect: el('languageSelect'), languageTotal: el('languageTotal'),
   viewTitle: el('viewTitle'), viewSub: el('viewSub'),
@@ -147,6 +149,34 @@ function activeFilterLabel() {
 const nonWord = /[^\p{L}\p{N}]+/gu
 const normalise = text => text.toLowerCase().replace(nonWord, ' ').trim()
 
+// Stable hue per channel name, so logo-less tiles are distinguishable from each
+// other and keep the same colour across reloads.
+function monoHue(name) {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) % 360
+  // Constrained to 190-300deg (cyan through violet) so the tiles stay in family
+  // with the slate/blue palette instead of drifting into muddy olives.
+  return 190 + (hash % 111)
+}
+
+const THEME_ICONS = {
+  system: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8 20h8M12 17v3"/></svg>',
+  light: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2.5M12 19.5V22M22 12h-2.5M4.5 12H2M19.07 4.93l-1.77 1.77M6.7 17.3l-1.77 1.77M19.07 19.07l-1.77-1.77M6.7 6.7L4.93 4.93"/></svg>',
+  dark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.2A8.2 8.2 0 1 1 9.8 4a6.6 6.6 0 0 0 10.2 10.2z"/></svg>'
+}
+const THEME_LABELS = { system: 'follow system', light: 'light', dark: 'dark' }
+
+function applyTheme(theme) {
+  if (theme === 'system') document.documentElement.removeAttribute('data-theme')
+  else document.documentElement.setAttribute('data-theme', theme)
+  if (dom.themeBtn) {
+    dom.themeBtn.innerHTML = THEME_ICONS[theme] || THEME_ICONS.system
+    const label = `Theme: ${THEME_LABELS[theme] || 'follow system'}`
+    dom.themeBtn.setAttribute('aria-label', label)
+    dom.themeBtn.title = `${label} — click to change`
+  }
+}
+
 // ------------------------------------------------------------------- data
 
 async function loadCountry(code) {
@@ -191,6 +221,7 @@ const CHUNK = 120
 let renderCursor = 0
 let renderQueue = []
 let observer = null
+let ambiguousNames = new Set()
 
 function channelCard(channel) {
   const card = document.createElement('button')
@@ -201,20 +232,24 @@ function channelCard(channel) {
 
   const thumb = document.createElement('div')
   thumb.className = 'card-thumb'
+  const useMonogram = () => {
+    thumb.style.setProperty('--mono', String(monoHue(channel.name)))
+    thumb.append(initial(channel.name))
+  }
   if (channel.logo) {
     const img = document.createElement('img')
     img.src = channel.logo
     img.alt = ''
     img.loading = 'lazy'
     img.decoding = 'async'
-    // Plenty of logo URLs in the database are dead; fall back to an initial.
+    // ~6% of the logo URLs in the database are dead; fall back to a monogram.
     img.onerror = () => {
       img.remove()
-      thumb.append(initial(channel.name))
+      useMonogram()
     }
     thumb.append(img)
   } else {
-    thumb.append(initial(channel.name))
+    useMonogram()
   }
 
   const name = document.createElement('div')
@@ -230,6 +265,15 @@ function channelCard(channel) {
     quality.textContent = best.quality
     tags.append(quality)
   }
+  // 'SD' covers two thirds of all channels, so a feed badge everywhere would be
+  // noise. Show it only where the same name appears more than once here.
+  if (channel.feed && ambiguousNames.has(channel.name)) {
+    const feed = document.createElement('span')
+    feed.className = 'tag tag-feed'
+    feed.textContent = channel.feed
+    tags.append(feed)
+  }
+
   const count = document.createElement('span')
   count.className = 'tag'
   count.textContent = `${channel.streams.length} src`
@@ -297,6 +341,10 @@ function renderChannels(channels, { title, subtitle, emptyMessage }) {
   renderQueue = channels
   renderCursor = 0
 
+  const seen = new Map()
+  for (const channel of channels) seen.set(channel.name, (seen.get(channel.name) || 0) + 1)
+  ambiguousNames = new Set([...seen].filter(([, n]) => n > 1).map(([name]) => name))
+
   if (!channels.length) {
     dom.emptyState.hidden = false
     dom.emptyBody.textContent = emptyMessage || 'Try a different country or search term.'
@@ -310,14 +358,16 @@ function renderSidebar() {
   const { countries, categories } = state.meta
   dom.countryTotal.textContent = `(${countries.length})`
 
+  const COLLAPSED_CHIPS = 8
   dom.categoryChips.replaceChildren()
-  for (const category of categories) {
+  categories.forEach((category, index) => {
     const chip = document.createElement('button')
     chip.className = 'chip'
     chip.type = 'button'
     chip.textContent = category.name
     chip.setAttribute('aria-pressed', 'false')
     chip.dataset.category = category.id
+    if (index >= COLLAPSED_CHIPS) chip.dataset.overflow = 'true'
     chip.title = `${category.count} channels`
     chip.addEventListener('click', () => {
       state.view.category = state.view.category === category.id ? null : category.id
@@ -325,7 +375,9 @@ function renderSidebar() {
       refreshView()
     })
     dom.categoryChips.append(chip)
-  }
+  })
+  dom.categoryMore.hidden = categories.length <= COLLAPSED_CHIPS
+  dom.categoryMore.textContent = `Show all ${categories.length}`
 
   const languages = state.meta.languages || []
   dom.languageTotal.textContent = `(${languages.length})`
@@ -341,7 +393,10 @@ function renderSidebar() {
 
 function syncChips() {
   for (const chip of dom.categoryChips.children) {
-    chip.setAttribute('aria-pressed', String(chip.dataset.category === state.view.category))
+    const active = chip.dataset.category === state.view.category
+    chip.setAttribute('aria-pressed', String(active))
+    // A selected category must stay visible even while the list is collapsed.
+    if (active) delete chip.dataset.overflow
   }
 }
 
@@ -821,6 +876,23 @@ function bindEvents() {
     else location.hash = '#/favourites'
   })
 
+  dom.themeBtn.addEventListener('click', () => {
+    const order = ['system', 'light', 'dark']
+    const next = order[(order.indexOf(settings.theme) + 1) % order.length]
+    settings.theme = next
+    saveStore()
+    applyTheme(next)
+    toast(`Theme: ${THEME_LABELS[next]}`, 1400)
+  })
+
+  dom.categoryMore.addEventListener('click', () => {
+    const collapsed = dom.categoryChips.dataset.collapsed === 'true'
+    dom.categoryChips.dataset.collapsed = String(!collapsed)
+    dom.categoryMore.setAttribute('aria-expanded', String(collapsed))
+    const total = (state.meta.categories || []).length
+    dom.categoryMore.textContent = collapsed ? 'Show fewer' : `Show all ${total}`
+  })
+
   dom.languageSelect.addEventListener('change', () => {
     state.view.language = dom.languageSelect.value || null
     settings.language = state.view.language
@@ -909,6 +981,7 @@ function bindEvents() {
 // -------------------------------------------------------------------- init
 
 async function init() {
+  applyTheme(settings.theme)
   dom.proxyInput.value = settings.proxy
   dom.directFirst.checked = settings.directFirst
   dom.showNsfw.checked = settings.showNsfw

@@ -1,42 +1,78 @@
 /* IPTV Web Player — dark-first, no framework, no build step. */
 
 :root {
-  --bg: #0b0d10;
-  --bg-elev: #13171c;
-  --bg-elev-2: #1a1f26;
-  --line: #262d36;
-  --line-soft: #1d232b;
-  --text: #e7ecf2;
-  --text-dim: #93a0b0;
-  --text-faint: #65717f;
-  --accent: #4da3ff;
+  --bg: #0d1117;
+  --bg-elev: #161c24;
+  --bg-elev-2: #1f2733;
+  --line: #2b3542;
+  --line-soft: #212a35;
+  --text: #e8eef5;
+  --text-dim: #94a3b8;
+  --text-faint: #6b7a8d;
+  --accent: #3b9eff;
   --accent-ink: #04121f;
+  --accent-soft: rgba(59, 158, 255, 0.14);
+  --accent-line: rgba(59, 158, 255, 0.45);
   --warn: #f0a93b;
   --bad: #ff6b6b;
   --ok: #49c98a;
+  --thumb-bg: #1b222c;
+  --mono-sat: 28%;
+  --mono-bg1: 21%;
+  --mono-bg2: 13%;
+  --mono-fg-s: 45%;
+  --mono-fg-l: 72%;
   --radius: 12px;
   --radius-sm: 8px;
   --topbar-h: 60px;
   --sidebar-w: 260px;
-  --shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.6);
   color-scheme: dark;
 }
 
+/* Light palette. Declared twice on purpose: once for "OS says light and the
+   user has not forced dark", once for an explicit light choice. CSS has no way
+   to share a token block between a media query and an attribute selector. */
 @media (prefers-color-scheme: light) {
   :root:not([data-theme='dark']) {
-    --bg: #f5f7fa;
+    --bg: #f4f6fa;
     --bg-elev: #ffffff;
-    --bg-elev-2: #eef1f6;
-    --line: #d8dee7;
-    --line-soft: #e5eaf1;
-    --text: #141a21;
-    --text-dim: #5a6775;
-    --text-faint: #8794a3;
+    --bg-elev-2: #eaeff6;
+    --line: #d2dae5;
+    --line-soft: #e3e9f1;
+    --text: #0d1117;
+    --text-dim: #516071;
+    --text-faint: #7b8898;
     --accent: #0b6bd3;
     --accent-ink: #ffffff;
+    --accent-soft: rgba(11, 107, 211, 0.10);
+    --accent-line: rgba(11, 107, 211, 0.40);
+    --warn: #b7791f;
+    --bad: #d64545;
+    --ok: #1f8f5f;
     --shadow: 0 18px 50px rgba(20, 30, 45, 0.18);
     color-scheme: light;
   }
+}
+
+:root[data-theme='light'] {
+    --bg: #f4f6fa;
+    --bg-elev: #ffffff;
+    --bg-elev-2: #eaeff6;
+    --line: #d2dae5;
+    --line-soft: #e3e9f1;
+    --text: #0d1117;
+    --text-dim: #516071;
+    --text-faint: #7b8898;
+    --accent: #0b6bd3;
+    --accent-ink: #ffffff;
+    --accent-soft: rgba(11, 107, 211, 0.10);
+    --accent-line: rgba(11, 107, 211, 0.40);
+    --warn: #b7791f;
+    --bad: #d64545;
+    --ok: #1f8f5f;
+    --shadow: 0 18px 50px rgba(20, 30, 45, 0.18);
+    color-scheme: light;
 }
 
 * { box-sizing: border-box; }
@@ -180,7 +216,16 @@ a:hover { text-decoration: underline; }
 .side-select:focus { border-color: var(--accent); outline: none; }
 .side-select option { background: var(--bg-elev); color: var(--text); }
 
-.chips { display: flex; flex-wrap: wrap; gap: 6px; max-height: 142px; overflow-y: auto; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips[data-collapsed='true'] .chip[data-overflow='true'] { display: none; }
+.chips-more {
+  align-self: flex-start;
+  margin-top: 2px; padding: 3px 2px;
+  background: none; border: none;
+  color: var(--accent); font: inherit; font-size: 12px; font-weight: 600;
+  cursor: pointer;
+}
+.chips-more:hover { text-decoration: underline; }
 .chip {
   padding: 4px 10px;
   background: var(--bg-elev); color: var(--text-dim);
@@ -199,7 +244,13 @@ a:hover { text-decoration: underline; }
   font: inherit; text-align: left; cursor: pointer;
 }
 .country-btn:hover { background: var(--bg-elev-2); color: var(--text); }
-.country-btn[aria-current='true'] { background: var(--bg-elev-2); color: var(--text); font-weight: 600; }
+.country-btn[aria-current='true'] {
+  background: var(--accent-soft);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.country-btn[aria-current='true'] .country-num { color: var(--accent); }
 .country-btn[aria-current='true'] .country-flag { transform: scale(1.1); }
 .country-flag { font-size: 16px; line-height: 1; flex: none; }
 .country-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -228,23 +279,48 @@ a:hover { text-decoration: underline; }
   font: inherit;
   transition: border-color 0.14s, transform 0.14s, background 0.14s;
 }
-.card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.card:hover {
+  border-color: var(--accent-line);
+  background: var(--bg-elev-2);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}
 .card-thumb {
   display: grid; place-items: center;
   aspect-ratio: 16 / 10;
-  background: var(--bg-elev-2); border-radius: var(--radius-sm);
+  background: var(--thumb-bg); border-radius: var(--radius-sm);
   overflow: hidden;
 }
 .card-thumb img { max-width: 82%; max-height: 72%; object-fit: contain; }
-.card-initial { font-size: 24px; font-weight: 700; color: var(--text-faint); letter-spacing: -0.02em; }
+/* Fallback tile for the ~20% of channels with no usable logo. The hue comes
+   from the channel name, so these read as deliberate and stay distinguishable
+   instead of a wall of identical grey letters. */
+.card-thumb[style*='--mono'] {
+  background: linear-gradient(
+    145deg,
+    hsl(var(--mono) var(--mono-sat) var(--mono-bg1)),
+    hsl(var(--mono) var(--mono-sat) var(--mono-bg2))
+  );
+}
+.card-initial {
+  font-size: 26px; font-weight: 750; letter-spacing: -0.03em;
+  color: hsl(var(--mono, 210) var(--mono-fg-s) var(--mono-fg-l));
+}
 .card-name {
   font-size: 13px; font-weight: 600; line-height: 1.35;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .card-tags { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-faint); }
 .tag { padding: 1px 6px; background: var(--bg-elev-2); border-radius: 4px; white-space: nowrap; }
-.tag-quality { color: var(--ok); }
-.tag-nsfw { color: var(--bad); }
+.tag-quality {
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+  border-left: 2px solid var(--accent);
+  border-radius: 2px 4px 4px 2px;
+}
+.tag-feed { color: var(--text-dim); border: 1px solid var(--line); background: transparent; }
+.tag-nsfw { color: var(--bad); background: rgba(255, 107, 107, 0.12); }
 .card-fav {
   position: absolute; top: 8px; right: 8px;
   width: 26px; height: 26px; display: grid; place-items: center;
@@ -281,7 +357,7 @@ a:hover { text-decoration: underline; }
   overflow: hidden;
 }
 .player-head { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line-soft); }
-.player-logo { width: 38px; height: 38px; object-fit: contain; background: var(--bg-elev-2); border-radius: 7px; padding: 4px; flex: none; }
+.player-logo { width: 38px; height: 38px; object-fit: contain; background: var(--thumb-bg); border-radius: 7px; padding: 4px; flex: none; }
 .player-id { flex: 1; min-width: 0; }
 .player-title { margin: 0; font-size: 15px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .player-meta { margin: 2px 0 0; font-size: 12px; color: var(--text-dim); }

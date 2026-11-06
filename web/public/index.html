@@ -44,6 +44,7 @@
           <span aria-hidden="true">★</span> <span class="pill-label">Favourites</span>
           <span class="pill-count" id="favCount">0</span>
         </button>
+        <button class="icon-btn" id="themeBtn" aria-label="Theme: follow system" title="Theme: follow system"></button>
         <button class="icon-btn" id="settingsBtn" aria-label="Settings" aria-expanded="false">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <circle cx="12" cy="12" r="3.2" />
@@ -58,7 +59,8 @@
       <nav class="sidebar" id="sidebar" aria-label="Channel filters">
         <div class="side-section">
           <h2 class="side-title">Categories</h2>
-          <div class="chips" id="categoryChips"></div>
+          <div class="chips" id="categoryChips" data-collapsed="true"></div>
+          <button class="chips-more" id="categoryMore" type="button" aria-expanded="false"></button>
         </div>
         <div class="side-section">
           <h2 class="side-title">
