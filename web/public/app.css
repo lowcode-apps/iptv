@@ -41,6 +41,13 @@
 
 * { box-sizing: border-box; }
 
+/* The `hidden` attribute hides via the UA rule `[hidden] { display: none }`,
+   which ANY author `display` declaration beats. Several elements here are
+   `display: grid` / `display: flex` and are toggled with `hidden`
+   (.sheet, .player-backdrop, .video-status), so without this they could never
+   be hidden at all. Toggle visibility with el.hidden, not inline styles. */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   background: var(--bg);
