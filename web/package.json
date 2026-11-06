@@ -1,0 +1,12 @@
+{
+  "name": "iptv-web-player",
+  "private": true,
+  "type": "module",
+  "description": "Browser player for the channels in this IPTV playlist repository.",
+  "scripts": {
+    "build": "node scripts/build-index.mjs",
+    "dev": "npx --yes wrangler@latest pages dev public",
+    "deploy": "npm run build && npx --yes wrangler@latest pages deploy public",
+    "serve": "npx --yes http-server public -p 8788 -c-1"
+  }
+}

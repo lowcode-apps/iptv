@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>IPTV Web Player</title>
+    <meta name="description" content="Browse and play the channels in this IPTV playlist repository directly in the browser." />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#0b0d10" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>📺</text></svg>" />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="stylesheet" href="./app.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#channels">Skip to channels</a>
+
+    <header class="topbar">
+      <button class="icon-btn nav-toggle" id="navToggle" aria-label="Toggle navigation" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
+      </button>
+
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">📺</span>
+        <span class="brand-text">IPTV&nbsp;<span class="brand-dim">Web Player</span></span>
+      </div>
+
+      <div class="search-wrap">
+        <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" />
+        </svg>
+        <input
+          id="search"
+          type="search"
+          placeholder="Search channels…  (press /)"
+          autocomplete="off"
+          spellcheck="false"
+          aria-label="Search channels"
+        />
+        <kbd class="search-kbd">/</kbd>
+      </div>
+
+      <div class="topbar-actions">
+        <button class="pill" id="favouritesBtn" aria-pressed="false" title="Show favourites">
+          <span aria-hidden="true">★</span> <span class="pill-label">Favourites</span>
+          <span class="pill-count" id="favCount">0</span>
+        </button>
+        <button class="icon-btn" id="settingsBtn" aria-label="Settings" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="3.2" />
+            <path d="M12 2.6v2.6M12 18.8v2.6M21.4 12h-2.6M5.2 12H2.6M18.6 5.4l-1.8 1.8M7.2 16.8l-1.8 1.8M18.6 18.6l-1.8-1.8M7.2 7.2L5.4 5.4" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <!-- Sidebar: countries and categories -->
+      <nav class="sidebar" id="sidebar" aria-label="Channel filters">
+        <div class="side-section">
+          <h2 class="side-title">Categories</h2>
+          <div class="chips" id="categoryChips"></div>
+        </div>
+        <div class="side-section side-grow">
+          <h2 class="side-title">
+            Countries <span class="side-count" id="countryTotal"></span>
+          </h2>
+          <input
+            id="countryFilter"
+            class="side-filter"
+            type="search"
+            placeholder="Filter countries…"
+            autocomplete="off"
+            aria-label="Filter countries"
+          />
+          <ul class="country-list" id="countryList"></ul>
+        </div>
+      </nav>
+
+      <!-- Main content -->
+      <main class="content">
+        <div class="content-head">
+          <h1 class="content-title" id="viewTitle">Loading…</h1>
+          <p class="content-sub" id="viewSub"></p>
+        </div>
+        <div id="channels" class="grid" role="list" aria-busy="true"></div>
+        <div class="empty" id="emptyState" hidden>
+          <p class="empty-title">Nothing here</p>
+          <p class="empty-body" id="emptyBody">Try a different country or search term.</p>
+        </div>
+        <footer class="foot">
+          <span id="footStats"></span>
+          <span class="foot-sep">·</span>
+          <a href="https://github.com/iptv-org/iptv" rel="noopener noreferrer" target="_blank">iptv-org/iptv</a>
+          <span class="foot-sep">·</span>
+          <span id="footGenerated"></span>
+        </footer>
+      </main>
+    </div>
+
+    <!-- Player -->
+    <div class="player-backdrop" id="playerBackdrop" hidden>
+      <section class="player" id="player" role="dialog" aria-modal="true" aria-labelledby="playerTitle">
+        <div class="player-head">
+          <img class="player-logo" id="playerLogo" alt="" hidden />
+          <div class="player-id">
+            <h2 class="player-title" id="playerTitle">—</h2>
+            <p class="player-meta" id="playerMeta"></p>
+          </div>
+          <button class="icon-btn" id="playerFav" aria-label="Add to favourites" aria-pressed="false">
+            <span aria-hidden="true">★</span>
+          </button>
+          <button class="icon-btn" id="playerClose" aria-label="Close player">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </div>
+
+        <div class="video-shell">
+          <video id="video" playsinline controls autoplay></video>
+          <div class="video-status" id="videoStatus" hidden>
+            <div class="spinner" aria-hidden="true"></div>
+            <p class="video-status-text" id="videoStatusText">Connecting…</p>
+            <p class="video-status-hint" id="videoStatusHint"></p>
+            <button class="btn" id="videoRetry" hidden>Try next source</button>
+          </div>
+        </div>
+
+        <div class="player-foot">
+          <div class="source-row" id="sourceRow" role="group" aria-label="Stream sources"></div>
+          <p class="player-note" id="playerNote"></p>
+        </div>
+      </section>
+    </div>
+
+    <!-- Settings -->
+    <div class="sheet" id="settingsSheet" hidden>
+      <div class="sheet-inner" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+        <div class="sheet-head">
+          <h2 id="settingsTitle">Settings</h2>
+          <button class="icon-btn" id="settingsClose" aria-label="Close settings">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </div>
+
+        <label class="field">
+          <span class="field-label">Stream proxy URL</span>
+          <input id="proxyInput" type="url" placeholder="/proxy" autocomplete="off" spellcheck="false" />
+          <span class="field-hint">
+            Needed for <code>http://</code>-only sources and for streams that require a
+            custom <code>User-Agent</code> or <code>Referer</code> — roughly a third of
+            this repo. Leave as <code>/proxy</code> when deployed on Cloudflare Pages;
+            clear it to play only what works without a server.
+          </span>
+        </label>
+
+        <label class="toggle">
+          <input type="checkbox" id="directFirst" />
+          <span>
+            <span class="toggle-title">Try direct connection first</span>
+            <span class="toggle-hint">
+              Most reachable HTTPS sources play fine with no proxy at all, which keeps
+              you well inside the Cloudflare free-tier request budget. Falls back to the
+              proxy automatically when a direct attempt fails.
+            </span>
+          </span>
+        </label>
+
+        <label class="toggle">
+          <input type="checkbox" id="showNsfw" />
+          <span>
+            <span class="toggle-title">Show adult channels</span>
+            <span class="toggle-hint">Channels flagged <code>is_nsfw</code> in the iptv-org database are hidden by default.</span>
+          </span>
+        </label>
+
+        <label class="toggle">
+          <input type="checkbox" id="autoNext" />
+          <span>
+            <span class="toggle-title">Auto-advance on failure</span>
+            <span class="toggle-hint">Many of these streams are offline. Automatically tries the channel's other sources.</span>
+          </span>
+        </label>
+
+        <p class="sheet-note">
+          Settings are stored in this browser only. Channel data is rebuilt from
+          <code>streams/*.m3u</code> on every deploy.
+        </p>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

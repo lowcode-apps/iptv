@@ -1,0 +1,8 @@
+# Cached iptv-org API payloads (~15MB), refetched on build
+.cache/
+
+# Channel index, regenerated from ../streams on every build
+public/data/
+
+node_modules/
+.wrangler/

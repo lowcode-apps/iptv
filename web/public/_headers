@@ -1,0 +1,14 @@
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  X-Frame-Options: SAMEORIGIN
+
+# The channel index is rebuilt on every deploy, so let the browser keep it
+# briefly but always revalidate against a new build.
+/data/*
+  Cache-Control: public, max-age=300, must-revalidate
+
+/app.js
+  Cache-Control: public, max-age=600
+/app.css
+  Cache-Control: public, max-age=600
