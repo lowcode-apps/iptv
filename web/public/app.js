@@ -13,7 +13,8 @@ const defaults = {
   directFirst: true,
   showNsfw: false,
   autoNext: true,
-  favourites: []
+  favourites: [],
+  lastCountry: null
 }
 
 function loadStore() {
@@ -377,6 +378,9 @@ async function showCountry(code) {
   }
   if (state.view.country !== code) return // user navigated away mid-load
 
+  settings.lastCountry = code
+  saveStore()
+
   const visible = state.channels.filter(matchesFilters)
   const streams = visible.reduce((n, c) => n + c.streams.length, 0)
   renderChannels(visible, {
@@ -502,8 +506,12 @@ function route() {
   if (section === 'favourites') return showFavourites()
   if (section === 'country' && value) return showCountry(value.toUpperCase())
 
-  // Default: the first country that actually has channels.
-  const fallback = state.meta.countries.find(c => c.count > 0) || state.meta.countries[0]
+  // Default view. Alphabetical order would land on Afghanistan and its 15
+  // channels, which reads as a broken page, so prefer where the user last was,
+  // then India (the largest playlist in this repo), then whatever is biggest.
+  const byCode = code => state.meta.countries.find(c => c.code === code && c.count > 0)
+  const biggest = [...state.meta.countries].sort((a, b) => b.count - a.count)[0]
+  const fallback = byCode(settings.lastCountry) || byCode('IN') || biggest
   if (fallback) return showCountry(fallback.code)
 }
 
