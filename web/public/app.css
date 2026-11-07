@@ -356,7 +356,26 @@ a:hover { text-decoration: underline; }
   box-shadow: var(--shadow);
   overflow: hidden;
 }
-.player-head { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line-soft); }
+.player-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line-soft); }
+
+.back-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 34px; padding: 0 12px 0 8px; flex: none;
+  background: var(--bg-elev-2); color: var(--text);
+  border: 1px solid var(--line); border-radius: 999px;
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.back-btn:hover { border-color: var(--accent-line); color: var(--accent); }
+.back-btn svg { width: 17px; height: 17px; }
+
+.player-nav { display: flex; align-items: center; gap: 2px; flex: none; }
+.player-pos {
+  min-width: 56px; padding: 0 2px;
+  color: var(--text-faint); font-size: 11.5px; font-variant-numeric: tabular-nums;
+  text-align: center; white-space: nowrap;
+}
+.icon-btn[disabled] { opacity: 0.35; cursor: default; }
+.icon-btn[disabled]:hover { background: transparent; color: var(--text-dim); }
 .player-logo { width: 38px; height: 38px; object-fit: contain; background: var(--thumb-bg); border-radius: 7px; padding: 4px; flex: none; }
 .player-id { flex: 1; min-width: 0; }
 .player-title { margin: 0; font-size: 15px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -481,6 +500,17 @@ a:hover { text-decoration: underline; }
   .player-backdrop, .sheet { padding: 0; }
   .player, .sheet-inner { border-radius: 0; border: none; max-height: 100dvh; height: 100dvh; }
   .video-shell { max-height: 46dvh; }
+  /* At phone width the header had six controls and left the channel name ~54px.
+     Back already does what the close button does, and the logo is decoration,
+     so both go and the title gets the room. */
+  .back-text { display: none; }
+  .back-btn { padding: 0 9px; }
+  .player-head { gap: 7px; }
+  .player-head .player-logo,
+  .player-head #playerClose { display: none; }
+  .player-nav { gap: 0; }
+  .player-nav .icon-btn { width: 32px; }
+  .player-pos { min-width: 0; font-size: 11px; }
 }
 
 @media (max-width: 420px) {

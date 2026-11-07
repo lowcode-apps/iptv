@@ -133,10 +133,16 @@ automatically.
 | Key | Action |
 | --- | --- |
 | `/` | Focus search |
-| `Esc` | Close player or settings |
+| `→` / `←` | Next / previous **channel** |
+| `n` | Next **source** for the current channel |
 | `f` | Fullscreen |
 | `m` | Mute |
-| `n` | Next source for this channel |
+| `Esc` | Close player or settings |
+
+Next/previous walk the list you are currently looking at, filters included — on
+India + Tamil you surf those 117 channels, not all 13,434. The list is snapshot
+when the player opens, so changing a filter underneath never shifts it. The
+browser/Android back button closes the player instead of leaving the site.
 
 ## Filters
 

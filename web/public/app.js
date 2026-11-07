@@ -47,7 +47,11 @@ const state = {
   searchIndex: null,
   current: null,
   sourceIndex: 0,
-  failed: new Set()
+  failed: new Set(),
+  // Snapshot of the list the player is walking, taken when it opens so that a
+  // later filter change cannot shift next/previous under the viewer.
+  playlist: [],
+  playlistIndex: -1
 }
 
 const countryCache = new Map()
@@ -66,6 +70,8 @@ const dom = {
   backdrop: el('playerBackdrop'), player: el('player'),
   playerLogo: el('playerLogo'), playerTitle: el('playerTitle'), playerMeta: el('playerMeta'),
   playerFav: el('playerFav'), playerClose: el('playerClose'), playerNote: el('playerNote'),
+  playerBack: el('playerBack'), playerPrev: el('playerPrev'), playerNext: el('playerNext'),
+  playerPos: el('playerPos'),
   video: el('video'), videoStatus: el('videoStatus'), videoStatusText: el('videoStatusText'),
   videoStatusHint: el('videoStatusHint'), videoRetry: el('videoRetry'), sourceRow: el('sourceRow'),
   settingsBtn: el('settingsBtn'), settingsSheet: el('settingsSheet'), settingsClose: el('settingsClose'),
@@ -800,7 +806,24 @@ function renderSources() {
     : ''
 }
 
-function openPlayer(channel) {
+function openPlayer(channel, { keepHistory = false } = {}) {
+  // Walking the visible, filtered list is what makes next/previous feel right:
+  // on India + Tamil you surf 117 channels, not all 13,434.
+  const index = renderQueue.indexOf(channel)
+  if (index !== -1) {
+    state.playlist = renderQueue
+    state.playlistIndex = index
+  } else if (state.playlistIndex === -1) {
+    state.playlist = [channel]
+    state.playlistIndex = 0
+  }
+
+  // One history entry for the whole viewing session, so the device/browser back
+  // button closes the player instead of leaving the site.
+  if (!keepHistory && dom.backdrop.hidden) {
+    history.pushState({ iptvPlayer: true }, '')
+  }
+
   state.current = channel
   state.failed = new Set()
   state.sourceIndex = 0
@@ -822,6 +845,7 @@ function openPlayer(channel) {
   }
 
   dom.playerFav.setAttribute('aria-pressed', String(favourites.has(favKey(channel))))
+  renderPlayerNav()
   dom.backdrop.hidden = false
   document.body.style.overflow = 'hidden'
   dom.playerClose.focus()
@@ -829,12 +853,34 @@ function openPlayer(channel) {
   attempt(0, firstMode(channel.streams[0]))
 }
 
-function closePlayer() {
+function renderPlayerNav() {
+  const total = state.playlist.length
+  const canStep = total > 1
+  dom.playerPrev.disabled = !canStep
+  dom.playerNext.disabled = !canStep
+  dom.playerPos.textContent = canStep ? `${state.playlistIndex + 1} / ${total}` : ''
+}
+
+// Wraps around, so surfing never dead-ends at the edge of the list.
+function stepChannel(delta) {
+  const total = state.playlist.length
+  if (total < 2) return
+  state.playlistIndex = (state.playlistIndex + delta + total) % total
+  const next = state.playlist[state.playlistIndex]
+  if (next) openPlayer(next, { keepHistory: true })
+}
+
+function closePlayer({ fromHistory = false } = {}) {
+  if (dom.backdrop.hidden) return
   stopPlayback()
   state.current = null
+  state.playlist = []
+  state.playlistIndex = -1
   dom.backdrop.hidden = true
   document.body.style.overflow = ''
   setStatus('loading', 'Connecting…')
+  // Drop the entry pushed on open, unless the browser already popped it.
+  if (!fromHistory && history.state?.iptvPlayer) history.back()
 }
 
 // ------------------------------------------------------------------ events
@@ -905,9 +951,17 @@ function bindEvents() {
     syncCountrySelection()
   })
 
-  dom.playerClose.addEventListener('click', closePlayer)
+  dom.playerClose.addEventListener('click', () => closePlayer())
+  dom.playerBack.addEventListener('click', () => closePlayer())
+  dom.playerPrev.addEventListener('click', () => stepChannel(-1))
+  dom.playerNext.addEventListener('click', () => stepChannel(1))
   dom.backdrop.addEventListener('mousedown', event => {
     if (event.target === dom.backdrop) closePlayer()
+  })
+
+  // Browser / Android back closes the player rather than leaving the site.
+  window.addEventListener('popstate', () => {
+    if (!dom.backdrop.hidden) closePlayer({ fromHistory: true })
   })
   dom.playerFav.addEventListener('click', () => {
     if (!state.current) return
@@ -962,7 +1016,13 @@ function bindEvents() {
     }
     if (dom.backdrop.hidden) return
 
-    if (event.key === 'f') {
+    if (event.key === 'ArrowRight') {
+      event.preventDefault()
+      stepChannel(1)
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault()
+      stepChannel(-1)
+    } else if (event.key === 'f') {
       const shell = dom.video.parentElement
       if (document.fullscreenElement) document.exitFullscreen()
       else shell.requestFullscreen?.().catch(() => dom.video.webkitEnterFullscreen?.())

@@ -111,10 +111,23 @@
     <div class="player-backdrop" id="playerBackdrop" hidden>
       <section class="player" id="player" role="dialog" aria-modal="true" aria-labelledby="playerTitle">
         <div class="player-head">
+          <button class="back-btn" id="playerBack" aria-label="Back to channels">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+            <span class="back-text">Back</span>
+          </button>
           <img class="player-logo" id="playerLogo" alt="" hidden />
           <div class="player-id">
             <h2 class="player-title" id="playerTitle">—</h2>
             <p class="player-meta" id="playerMeta"></p>
+          </div>
+          <div class="player-nav">
+            <button class="icon-btn" id="playerPrev" aria-label="Previous channel" title="Previous channel (←)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+            </button>
+            <span class="player-pos" id="playerPos"></span>
+            <button class="icon-btn" id="playerNext" aria-label="Next channel" title="Next channel (→)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg>
+            </button>
           </div>
           <button class="icon-btn" id="playerFav" aria-label="Add to favourites" aria-pressed="false">
             <span aria-hidden="true">★</span>
