@@ -25,6 +25,48 @@ const API = 'https://iptv-org.github.io/api'
 
 const log = (...a) => console.log('[build-index]', ...a)
 
+// Playlists are named <country>[_<provider>].m3u. That suffix identifies the
+// FAST / free-OTT platform a stream comes from (Pluto TV, Samsung TV Plus,
+// Rakuten and friends) and is worth keeping as a browsable dimension.
+const PROVIDER_NAMES = {
+  pluto: 'Pluto TV',
+  samsung: 'Samsung TV Plus',
+  rakuten: 'Rakuten TV',
+  plex: 'Plex',
+  tubi: 'Tubi',
+  roku: 'The Roku Channel',
+  xumo: 'Xumo Play',
+  stirr: 'Stirr',
+  vizio: 'VIZIO WatchFree+',
+  firetv: 'Amazon Fire TV',
+  distro: 'DistroTV',
+  amagi: 'Amagi',
+  pbs: 'PBS',
+  bbc: 'BBC',
+  doordarshan: 'Doordarshan',
+  cbsn: 'CBS News',
+  abcnews: 'ABC News',
+  cgtn: 'CGTN',
+  cctv: 'CCTV',
+  rt: 'RT',
+  stingray: 'Stingray',
+  skygo: 'Sky Go',
+  tcl: 'TCL Channel',
+  glewedtv: 'Glewed TV',
+  canelatv: 'Canela TV',
+  frequency: 'Frequency',
+  klowdtv: 'KlowdTV',
+  sofast: 'SoFast',
+  groupecanalplus: 'Canal+',
+  groupem6: 'M6',
+  fashiontv: 'FashionTV',
+  telewebion: 'Telewebion',
+  smotrim: 'Smotrim'
+}
+
+const providerName = id =>
+  PROVIDER_NAMES[id] || id.replace(/(^|[^a-z])([a-z])/g, (_, p, c) => p + c.toUpperCase())
+
 // --- api fetching, cached on disk so local rebuilds don't refetch ~15MB -----
 
 async function api(name) {
@@ -194,8 +236,10 @@ async function main() {
   const stats = { entries: 0, streams: 0, hls: 0, dash: 0, other: 0, insecure: 0, noMeta: 0 }
 
   for (const file of files) {
-    // `in.m3u` -> IN, `at_pluto.m3u` -> AT (provider-specific playlists)
-    const code = file.replace(/\.m3u$/, '').split('_')[0].toUpperCase()
+    // `in.m3u` -> IN, `at_pluto.m3u` -> AT + provider `pluto`
+    const [codePart, ...providerParts] = file.replace(/\.m3u$/, '').split('_')
+    const code = codePart.toUpperCase()
+    const provider = providerParts.length ? providerParts.join('_') : null
     const entries = parsePlaylist(await readFile(join(STREAMS_DIR, file), 'utf8'))
     stats.entries += entries.length
 
@@ -237,6 +281,7 @@ async function main() {
         url: entry.url,
         kind,
         quality: entry.quality,
+        ...(provider ? { provider } : {}),
         ...(entry.userAgent ? { userAgent: entry.userAgent } : {}),
         ...(entry.referrer ? { referrer: entry.referrer } : {}),
         ...(entry.notRoundTheClock ? { partTime: true } : {})
@@ -249,6 +294,8 @@ async function main() {
   for (const bucket of byCountry.values()) {
     for (const channel of bucket.values()) {
       channel.streams.sort((a, b) => qualityRank(b) - qualityRank(a))
+      const providers = [...new Set(channel.streams.map(s => s.provider).filter(Boolean))]
+      if (providers.length) channel.providers = providers
     }
   }
 
@@ -258,6 +305,10 @@ async function main() {
   const countries = []
   const categoryCounts = new Map()
   const languageCounts = new Map()
+  const providerCounts = new Map()
+  // provider -> Map<countryCode, channelCount>, so the UI can send you where a
+  // provider actually lives instead of showing an empty grid.
+  const providerCountries = new Map()
   const search = []
 
   for (const [code, bucket] of [...byCountry.entries()].sort()) {
@@ -280,6 +331,12 @@ async function main() {
       for (const language of channel.languages) {
         languageCounts.set(language, (languageCounts.get(language) || 0) + 1)
       }
+      for (const provider of channel.providers || []) {
+        providerCounts.set(provider, (providerCounts.get(provider) || 0) + 1)
+        if (!providerCountries.has(provider)) providerCountries.set(provider, new Map())
+        const perCountry = providerCountries.get(provider)
+        perCountry.set(code, (perCountry.get(code) || 0) + 1)
+      }
       // [id, name, countryCode, nsfw] — kept positional to keep this file small
       search.push([channel.id, channel.name, code, channel.nsfw ? 1 : 0])
     }
@@ -288,6 +345,20 @@ async function main() {
   const categories = [...categoryCounts.entries()]
     .map(([id, count]) => ({ id, name: categoryById.get(id)?.name || id, count }))
     .sort((a, b) => b.count - a.count)
+
+  const providers = [...providerCounts.entries()]
+    .map(([id, count]) => {
+      const perCountry = [...(providerCountries.get(id) || new Map()).entries()]
+        .sort((a, b) => b[1] - a[1])
+      return {
+        id,
+        name: providerName(id),
+        count,
+        countries: perCountry.length,
+        topCountry: perCountry[0]?.[0] || null
+      }
+    })
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
 
   const languages = [...languageCounts.entries()]
     .map(([code, count]) => ({ code, name: languageByCode.get(code)?.name || code, count }))
@@ -302,7 +373,8 @@ async function main() {
       totalStreams: stats.streams,
       countries: countries.sort((a, b) => a.name.localeCompare(b.name)),
       categories,
-      languages
+      languages,
+      providers
     })
   )
   await writeFile(join(OUT_DIR, 'search.json'), JSON.stringify(search))
@@ -311,6 +383,7 @@ async function main() {
   log(`hls=${stats.hls} dash=${stats.dash} other=${stats.other}`)
   log(`http-only=${stats.insecure} (proxy required) no-api-metadata=${stats.noMeta}`)
   log(`countries=${countries.length} categories=${categories.length} languages=${languages.length}`)
+  log(`providers=${providers.length} top=${providers.slice(0, 4).map(p => `${p.name}(${p.count})`).join(' ')}`)
   log(`-> ${OUT_DIR}`)
 }
 

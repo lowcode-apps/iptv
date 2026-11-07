@@ -70,6 +70,14 @@
             <option value="">All languages</option>
           </select>
         </div>
+        <div class="side-section">
+          <h2 class="side-title">
+            Provider <span class="side-count" id="providerTotal"></span>
+          </h2>
+          <select id="providerSelect" class="side-select" aria-label="Filter by streaming provider">
+            <option value="">All providers</option>
+          </select>
+        </div>
         <div class="side-section side-grow">
           <h2 class="side-title">
             Countries <span class="side-count" id="countryTotal"></span>
@@ -96,6 +104,7 @@
         <div class="empty" id="emptyState" hidden>
           <p class="empty-title">Nothing here</p>
           <p class="empty-body" id="emptyBody">Try a different country or search term.</p>
+          <button class="btn" id="clearFilters" type="button" hidden>Clear filters</button>
         </div>
         <footer class="foot">
           <span id="footStats"></span>

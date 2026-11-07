@@ -144,15 +144,43 @@ India + Tamil you surf those 117 channels, not all 13,434. The list is snapshot
 when the player opens, so changing a filter underneath never shifts it. The
 browser/Android back button closes the player instead of leaving the site.
 
+## Streaming providers (FAST / free OTT)
+
+About a third of this repo — 6,009 streams — comes from free ad-supported
+streaming platforms. The playlists are named `<country>_<provider>.m3u`, and the
+build keeps that suffix so each platform is browsable on its own:
+
+| Provider | Channels | Countries |
+| --- | ---: | ---: |
+| Pluto TV | 2,108 | 17 |
+| Samsung TV Plus | 679 | 28 |
+| Rakuten TV | 288 | 13 |
+| Tubi | 156 | 4 |
+| Xumo Play | 106 | 5 |
+| …plus Plex, Roku, Stirr, VIZIO, Fire TV, DistroTV, PBS, Doordarshan, BBC and 60 more | | |
+
+Picking a provider moves you to the country it mostly serves — Pluto TV to the
+US, Rakuten to France — rather than leaving you on an empty grid.
+
+**Subscription services are out of scope.** Netflix, Prime Video, Hotstar,
+JioCinema, Zee5 and SonyLIV are DRM-protected (Widevine / PlayReady / FairPlay)
+and require an authenticated subscription; there is no legitimate way to play
+them from a third-party page, and this project does not attempt it. These
+playlists are live linear channels only — there is no on-demand catalogue.
+
 ## Filters
 
-The sidebar carries three independent filters that stack with each other and
+The sidebar carries four independent filters that stack with each other and
 with search:
 
 - **Categories** — chips (News, Sports, Movies…), click to toggle.
 - **Language** — a dropdown of all 218 languages, ordered by channel count.
   Defaults to **Tamil**; whatever you pick is remembered for next time.
+- **Provider** — the 69 FAST platforms above.
 - **Countries** — 181 entries with a type-ahead filter box.
+
+When a combination has no matches the empty state says which filters clashed and
+offers a one-click **Clear filters**.
 
 The count beside each language is its worldwide total, so picking Tamil (136)
 while browsing India shows 117 — the rest are in Sri Lanka, Malaysia and

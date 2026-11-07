@@ -16,6 +16,7 @@ const defaults = {
   favourites: [],
   lastCountry: null,
   language: 'tam',
+  provider: null,
   theme: 'system'
 }
 
@@ -42,7 +43,11 @@ const favourites = new Set(settings.favourites)
 
 const state = {
   meta: null,
-  view: { kind: 'country', country: null, category: null, language: null, query: '' },
+  view: {
+    kind: 'country', country: null,
+    category: null, language: null, provider: null,
+    query: ''
+  },
   channels: [],
   searchIndex: null,
   current: null,
@@ -64,8 +69,10 @@ const dom = {
   themeBtn: el('themeBtn'), countryList: el('countryList'),
   countryFilter: el('countryFilter'), countryTotal: el('countryTotal'),
   languageSelect: el('languageSelect'), languageTotal: el('languageTotal'),
+  providerSelect: el('providerSelect'), providerTotal: el('providerTotal'),
   viewTitle: el('viewTitle'), viewSub: el('viewSub'),
   grid: el('channels'), emptyState: el('emptyState'), emptyBody: el('emptyBody'),
+  clearFilters: el('clearFilters'),
   footStats: el('footStats'), footGenerated: el('footGenerated'),
   backdrop: el('playerBackdrop'), player: el('player'),
   playerLogo: el('playerLogo'), playerTitle: el('playerTitle'), playerMeta: el('playerMeta'),
@@ -135,6 +142,7 @@ function matchesFilters(channel) {
   if (channel.nsfw && !settings.showNsfw) return false
   if (state.view.category && !channel.categories.includes(state.view.category)) return false
   if (state.view.language && !channel.languages.includes(state.view.language)) return false
+  if (state.view.provider && !(channel.providers || []).includes(state.view.provider)) return false
   return true
 }
 
@@ -148,6 +156,10 @@ function activeFilterLabel() {
   if (state.view.language) {
     const language = state.meta.languages.find(l => l.code === state.view.language)
     parts.push(language?.name || state.view.language)
+  }
+  if (state.view.provider) {
+    const provider = (state.meta.providers || []).find(p => p.id === state.view.provider)
+    parts.push(provider?.name || state.view.provider)
   }
   return parts.join(' + ')
 }
@@ -354,9 +366,11 @@ function renderChannels(channels, { title, subtitle, emptyMessage }) {
   if (!channels.length) {
     dom.emptyState.hidden = false
     dom.emptyBody.textContent = emptyMessage || 'Try a different country or search term.'
+    dom.clearFilters.hidden = !activeFilterLabel()
     return
   }
   dom.emptyState.hidden = true
+  dom.clearFilters.hidden = true
   renderChunk()
 }
 
@@ -393,6 +407,15 @@ function renderSidebar() {
   }
   dom.languageSelect.replaceChildren(...options)
   dom.languageSelect.value = state.view.language || ''
+
+  const providers = state.meta.providers || []
+  dom.providerTotal.textContent = `(${providers.length})`
+  const providerOptions = [new Option('All providers', '')]
+  for (const provider of providers) {
+    providerOptions.push(new Option(`${provider.name} (${provider.count})`, provider.id))
+  }
+  dom.providerSelect.replaceChildren(...providerOptions)
+  dom.providerSelect.value = state.view.provider || ''
 
   renderCountryList('')
 }
@@ -946,6 +969,39 @@ function bindEvents() {
     refreshView()
   })
 
+  dom.providerSelect.addEventListener('change', () => {
+    state.view.provider = dom.providerSelect.value || null
+    settings.provider = state.view.provider
+    saveStore()
+
+    // Pluto TV lives in the US, Rakuten in France. Browsing one while parked on
+    // a country it does not serve would just show an empty grid, so follow it.
+    const provider = (state.meta.providers || []).find(p => p.id === state.view.provider)
+    const presentHere = state.channels.some(c => (c.providers || []).includes(state.view.provider))
+    if (provider?.topCountry && !presentHere && state.view.kind === 'country') {
+      const target = state.meta.countries.find(c => c.code === provider.topCountry)
+      if (target) {
+        toast(`${provider.name} is mostly in ${target.name} — switching`, 2600)
+        location.hash = `#/country/${provider.topCountry.toLowerCase()}`
+        return
+      }
+    }
+    refreshView()
+  })
+
+  dom.clearFilters.addEventListener('click', () => {
+    state.view.category = null
+    state.view.language = null
+    state.view.provider = null
+    settings.language = null
+    settings.provider = null
+    saveStore()
+    dom.languageSelect.value = ''
+    dom.providerSelect.value = ''
+    syncChips()
+    refreshView()
+  })
+
   dom.countryFilter.addEventListener('input', () => {
     renderCountryList(dom.countryFilter.value)
     syncCountrySelection()
@@ -1069,6 +1125,10 @@ async function init() {
   state.view.language =
     (state.meta.languages || []).some(l => l.code === settings.language)
       ? settings.language
+      : null
+  state.view.provider =
+    (state.meta.providers || []).some(p => p.id === settings.provider)
+      ? settings.provider
       : null
 
   renderSidebar()
