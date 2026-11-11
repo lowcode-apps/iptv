@@ -1,0 +1,126 @@
+# Keeps this fork current with iptv-org/iptv without touching master directly.
+#
+# Flow: mirror upstream's master onto a `latest` branch, then open a PR from
+# `latest` into this fork's `master`. Nothing lands without review, so the
+# web/ player that lives only in master is never silently overwritten.
+#
+# IMPORTANT: merge the resulting PR with "Create a merge commit". Squash or
+# rebase rewrites the upstream commits, so master would no longer contain their
+# SHAs and every later run would re-propose the whole history.
+
+name: sync upstream
+
+on:
+  schedule:
+    # 02:30 UTC, deliberately after iptv-org's own 00:00 UTC playlist job so
+    # each sync picks up that day's regenerated playlists.
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+    inputs:
+      upstream:
+        description: Upstream repository (owner/name)
+        required: false
+        default: iptv-org/iptv
+      branch:
+        description: Upstream branch to track
+        required: false
+        default: master
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      UPSTREAM: ${{ github.event.inputs.upstream || 'iptv-org/iptv' }}
+      UPSTREAM_BRANCH: ${{ github.event.inputs.branch || 'master' }}
+      TARGET: ${{ github.event.repository.default_branch || 'master' }}
+      MIRROR: latest
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch upstream
+        id: upstream
+        run: |
+          set -euo pipefail
+          git fetch --no-tags "https://github.com/${UPSTREAM}.git" "${UPSTREAM_BRANCH}"
+          sha="$(git rev-parse FETCH_HEAD)"
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "short=$(git rev-parse --short=10 FETCH_HEAD)" >> "$GITHUB_OUTPUT"
+
+          # Nothing to do when master already contains this commit.
+          if git merge-base --is-ancestor "${sha}" "origin/${TARGET}"; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::${TARGET} is already up to date with ${UPSTREAM}@$(git rev-parse --short=10 FETCH_HEAD)"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "ahead=$(git rev-list --count "origin/${TARGET}..${sha}")" >> "$GITHUB_OUTPUT"
+            echo "files=$(git diff --name-only "origin/${TARGET}...${sha}" | wc -l | tr -d ' ')" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update the latest branch
+        if: steps.upstream.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          # `latest` is a pure mirror that nobody commits to, so forcing it to
+          # the upstream commit is safe and keeps the PR diff minimal.
+          git push --force origin "${{ steps.upstream.outputs.sha }}:refs/heads/${MIRROR}"
+
+      - name: Open or refresh the pull request
+        if: steps.upstream.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AHEAD: ${{ steps.upstream.outputs.ahead }}
+          FILES: ${{ steps.upstream.outputs.files }}
+          SHORT: ${{ steps.upstream.outputs.short }}
+        run: |
+          set -euo pipefail
+
+          existing="$(gh pr list --head "${MIRROR}" --base "${TARGET}" --state open \
+            --json number --jq '.[0].number // empty')"
+
+          if [ -n "${existing}" ]; then
+            echo "::notice::PR #${existing} is already open and now points at ${SHORT}"
+            exit 0
+          fi
+
+          # Built line by line rather than with a heredoc: an unindented
+          # heredoc would terminate this YAML block scalar.
+          {
+            echo "Automated upstream sync."
+            echo
+            echo "- **Source:** \`${UPSTREAM}@${SHORT}\`"
+            echo "- **New commits:** ${AHEAD}"
+            echo "- **Files changed:** ${FILES}"
+            echo "- **Compare:** https://github.com/${UPSTREAM}/compare/${SHORT}...${UPSTREAM_BRANCH}"
+            echo
+            echo "Merge with **Create a merge commit**. Squash or rebase rewrites the"
+            echo "upstream commits, so ${TARGET} would stop containing their SHAs and every"
+            echo "later sync would re-propose the entire history."
+            echo
+            echo "\`web/\` exists only in ${TARGET} and upstream never touches it, so this"
+            echo "should merge cleanly. If GitHub reports a conflict, resolve it locally:"
+            echo
+            echo '```bash'
+            echo "git fetch origin"
+            echo "git checkout ${TARGET}"
+            echo "git merge origin/${MIRROR}"
+            echo '```'
+            echo
+            echo "Opened by \`.github/workflows/sync-upstream.yml\`."
+          } > /tmp/pr-body.md
+
+          gh pr create \
+            --base "${TARGET}" \
+            --head "${MIRROR}" \
+            --title "Sync with ${UPSTREAM} (${SHORT})" \
+            --body-file /tmp/pr-body.md

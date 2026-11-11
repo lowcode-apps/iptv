@@ -89,11 +89,45 @@ and only changes the working directory, so `build-index.mjs` can still read
 `../streams`.
 
 Every push rebuilds the index, so syncing the fork with upstream is enough to
-pick up new channels:
+pick up new channels. That sync is automated — see below.
+
+## Staying in sync with iptv-org
+
+`.github/workflows/sync-upstream.yml` runs daily at 02:30 UTC (and on demand via
+**Actions → sync upstream → Run workflow**). It:
+
+1. fetches `iptv-org/iptv@master`;
+2. exits quietly if `master` already contains that commit;
+3. force-updates a **`latest`** branch to mirror upstream exactly;
+4. opens a PR from `latest` into `master`, or leaves the existing one to pick up
+   the new head.
+
+Nothing reaches `master` without review, so the player in `web/` is never
+overwritten by an upstream sync. A test merge of the current 25-commit backlog
+touches 50 files (45 under `streams/`) and **nothing** under `web/`.
+
+Three things to know:
+
+- **Merge the PR with "Create a merge commit".** Squash or rebase rewrites the
+  upstream commits, so `master` would stop containing their SHAs and every later
+  run would re-propose the whole history.
+- **Enable Actions on the fork.** GitHub disables workflows in forks until you
+  confirm them, and scheduled runs are paused after 60 days of inactivity.
+- **Disable upstream's `update.yml`.** It is scheduled daily and needs
+  `secrets.APP_ID` / `APP_PRIVATE_KEY`, which this fork does not have, so it
+  fails every night. It cannot push without that token, so it is noise rather
+  than a hazard — turn it off under Actions → update → ⋯ → Disable workflow.
+
+To sync by hand instead:
 
 ```bash
-git fetch upstream && git merge upstream/master && git push
+git fetch https://github.com/iptv-org/iptv.git master
+git merge FETCH_HEAD && git push
 ```
+
+Note that the remote named `upstream` in a local clone may point at an
+intermediate fork rather than `iptv-org/iptv`; check with `git remote -v` before
+relying on it.
 
 ### Via the CLI
 
