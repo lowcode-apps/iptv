@@ -9,6 +9,7 @@ import { loadData, data } from '../../api'
 import cliProgress from 'cli-progress'
 import { eachLimit } from 'async'
 import os from 'node:os'
+import { sortStreams } from '../../core/sortStreams'
 
 program
   .argument('[filepath...]', 'Path to file to format')
@@ -57,6 +58,7 @@ async function main() {
   })
 
   logger.info('removing duplicates...')
+  const filepaths = streams.map((stream: Stream) => stream.getFilepath()).uniq()
   streams = streams.uniqBy(stream => stream.url)
 
   logger.info('removing wrong id...')
@@ -110,24 +112,12 @@ async function main() {
   progressBar.stop()
 
   logger.info('sorting links...')
-  streams = streams.sortBy(
-    [
-      (stream: Stream) => stream.title,
-      (stream: Stream) => (stream.isGeoBlocked ? -1 : 0),
-      (stream: Stream) => (stream.isNot247 ? -1 : 0),
-      (stream: Stream) => stream.getVerticalResolution(),
-      (stream: Stream) => stream.url
-    ],
-    ['asc', 'desc', 'desc', 'desc', 'asc']
-  )
+  streams = sortStreams(streams)
 
   logger.info('saving...')
   const groupedStreams = streams.groupBy((stream: Stream) => stream.getFilepath())
-  for (const filepath of groupedStreams.keys()) {
+  for (const filepath of filepaths.all()) {
     const streams = new Collection(groupedStreams.get(filepath))
-
-    if (streams.isEmpty()) return
-
     const playlist = new Playlist(streams, { public: false, raw: true })
     await streamsStorage.save(filepath, playlist.toString())
   }

@@ -89,7 +89,7 @@ http://187.102.208.209:8000/play/a0ae/index.m3u8
 https://livecdn.enlace.plus/enlace/smil:enlace-hd.smil/playlist.m3u8
 #EXTINF:-1 tvg-id="Enlace.cr@SD",Enlace (576p)
 http://177.234.247.66:9975/Enlace/index.m3u8
-#EXTINF:-1 tvg-id="EnlaceJuvenil.cr@SD",Enlace Juvenil
+#EXTINF:-1 tvg-id="EnlaceJuvenil.cr@SD",Enlace Juvenil (720p)
 https://livecdnusa.enlace.plus/ejtv/smil:ejtv-hd.smil/playlist.m3u8
 #EXTINF:-1 tvg-id="ExtraTV42.cr@SD",Extra TV 42 (720p)
 https://d2n1wzrr0aogf5.cloudfront.net/ts:abr.m3u8
@@ -99,8 +99,6 @@ https://627bb251f23c7.streamlock.net:444/ExtremaKids/ExtremaKids/playlist.m3u8
 https://627bb251f23c7.streamlock.net:444/ExtremaTV/ExtremaTV/playlist.m3u8
 #EXTINF:-1 tvg-id="FUTV.cr@SD",FUTV (1080p)
 http://45.228.234.9:8000/play/a06o/index.m3u8
-#EXTINF:-1 tvg-id="FUTV.cr@SD",FUTV
-http://190.61.90.17:40000/play/a03v/index.m3u8
 #EXTINF:-1 tvg-id="GAMTVcr.cr@SD",GAMTV.cr (720p)
 https://v2.azulstream.com:8081/gamtv/gamtv/index.m3u8
 #EXTINF:-1 tvg-id="GarabitoTV.cr@SD",Garabito TV (720p)
@@ -179,8 +177,6 @@ https://mist01.homestream.fun/hls/tlmas904/0_1/index.m3u8
 https://k20.usastreams.com:8081/telered/index.m3u8
 #EXTINF:-1 tvg-id="TeleSURCostaRica.cr@SD",TeleSUR Costa Rica (720p) [Not 24/7]
 https://s1.tvdatta.com:3582/live/telesurlive.m3u8
-#EXTINF:-1 tvg-id="Teletica7.cr@SD",Teletica 7 (1080p)
-http://190.61.101.11:7050/play/a07t/index.m3u8
 #EXTINF:-1 tvg-id="Teletica7.cr@SD",Teletica 7 (720p) [Not 24/7]
 http://181.119.177.253:8000/play/a0da
 #EXTINF:-1 tvg-id="Teletica7.cr@SD",Teletica 7 (720p) [Geo-blocked]
